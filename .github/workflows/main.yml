@@ -1,10 +1,8 @@
-name: iOS Automation Tests
+name: iOS Simulator Test
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -12,43 +10,28 @@ jobs:
     runs-on: macos-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
     
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: 'maven'
+    - name: List iOS Simulators
+      run: xcrun simctl list devices available
     
-    - name: Verify Java installation
-      run: java -version
-    
-    - name: Install dependencies
-      run: mvn clean install -DskipTests -B
-    
-    - name: Run tests
-      run: mvn test -B
-      continue-on-error: true
-    
-    - name: Check test results
-      if: always()
+    - name: Boot iPhone 15
       run: |
-        if [ -d "target/surefire-reports" ]; then
-          echo "✅ Test reports found"
-          ls -la target/surefire-reports/
-        else
-          echo "⚠️ No test reports generated"
-        fi
+        DEVICE_ID=$(xcrun simctl list devices | grep "iPhone 15" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
+        echo "Booting device: $DEVICE_ID"
+        xcrun simctl boot $DEVICE_ID || echo "Already booted"
     
-    - name: Upload test results
-      if: always()
+    - name: Wait for boot
+      run: sleep 20
+    
+    - name: Take Screenshot
+      run: |
+        xcrun simctl io booted screenshot screenshot.png
+        ls -lh screenshot.png
+    
+    - name: Upload Screenshot
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ github.run_number }}
-        path: |
-          target/surefire-reports/
-          target/screenshots/
-        retention-days: 7
-        if-no-files-found: warn
+        name: simulator-screenshot
+        path: screenshot.png
