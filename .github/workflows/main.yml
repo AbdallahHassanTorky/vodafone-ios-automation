@@ -1,4 +1,4 @@
-name: iOS Simulator Test
+name: iOS Simulator
 
 on:
   push:
@@ -10,28 +10,29 @@ jobs:
     runs-on: macos-latest
     
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
     
-    - name: List iOS Simulators
-      run: xcrun simctl list devices available
-    
-    - name: Boot iPhone 15
+    - name: Boot Simulator Professional Way
       run: |
+        # 1. نجيب معرف الجهاز
         DEVICE_ID=$(xcrun simctl list devices | grep "iPhone 15" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
-        echo "Booting device: $DEVICE_ID"
+        echo "Booting Device ID: $DEVICE_ID"
+        
+        # 2. نشغل المحاكي
         xcrun simctl boot $DEVICE_ID || echo "Already booted"
+        
+        # 3. أهم خطوة: ننتظر المحاكي يخلص Booting فعلياً (بدل sleep الثابتة)
+        echo "Waiting for simulator to finish booting..."
+        xcrun simctl waitstatus $DEVICE_ID booted
+        
+        # 4. ننتظر 10 ثواني إضافية عشان الـ UI يستقر
+        sleep 10
+        
+        # 5. ناخد السكرين شوت
+        xcrun simctl io booted screenshot shot.png
     
-    - name: Wait for boot
-      run: sleep 20
-    
-    - name: Take Screenshot
-      run: |
-        xcrun simctl io booted screenshot screenshot.png
-        ls -lh screenshot.png
-    
-    - name: Upload Screenshot
+    - name: Upload Result
       uses: actions/upload-artifact@v4
       with:
         name: simulator-screenshot
-        path: screenshot.png
+        path: shot.png
