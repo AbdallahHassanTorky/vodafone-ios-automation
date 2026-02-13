@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # للسماح بتشغيل يدوي
+  workflow_dispatch:
 
 jobs:
   test:
@@ -22,48 +22,17 @@ jobs:
         distribution: 'adopt'
         cache: 'maven'
     
-    - name: Cache Maven packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-m2-
-    
     - name: Install dependencies
       run: mvn clean install -DskipTests
-    
-    - name: Compile test classes
-      run: mvn test-compile
     
     - name: Run tests
       run: mvn test
       continue-on-error: true
-    
-    - name: Generate test report
-      if: always()
-      run: |
-        echo "Test execution completed"
-        if [ -d "target/surefire-reports" ]; then
-          echo "Test reports generated"
-          ls -la target/surefire-reports/
-        fi
     
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v3
       with:
         name: test-results
-        path: |
-          target/surefire-reports/
-          target/screenshots/
+        path: target/surefire-reports/
         retention-days: 7
-    
-    - name: Publish test results
-      if: always()
-      uses: EnricoMi/publish-unit-test-result-action/composite@v2
-      with:
-        files: |
-          target/surefire-reports/*.xml
-        check_name: Test Results
-        comment_title: Test Results Summary
