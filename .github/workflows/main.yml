@@ -1,4 +1,4 @@
-name: iOS Simulator
+name: iOS Simulator Test
 
 on:
   push:
@@ -10,29 +10,45 @@ jobs:
     runs-on: macos-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Boot Simulator Professional Way
-      run: |
-        # 1. نجيب معرف الجهاز
-        DEVICE_ID=$(xcrun simctl list devices | grep "iPhone 15" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
-        echo "Booting Device ID: $DEVICE_ID"
-        
-        # 2. نشغل المحاكي
-        xcrun simctl boot $DEVICE_ID || echo "Already booted"
-        
-        # 3. أهم خطوة: ننتظر المحاكي يخلص Booting فعلياً (بدل sleep الثابتة)
-        echo "Waiting for simulator to finish booting..."
-        xcrun simctl waitstatus $DEVICE_ID booted
-        
-        # 4. ننتظر 10 ثواني إضافية عشان الـ UI يستقر
-        sleep 10
-        
-        # 5. ناخد السكرين شوت
-        xcrun simctl io booted screenshot shot.png
-    
-    - name: Upload Result
-      uses: actions/upload-artifact@v4
-      with:
-        name: simulator-screenshot
-        path: shot.png
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: List Available Devices (Debug)
+        run: xcrun simctl list devices available
+
+      - name: Boot iPhone Simulator
+        run: |
+          # البحث عن معرف أول جهاز آيفون متاح (مثل iPhone 15 أو 16)
+          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '[A-F0-9-]{36}')
+          
+          if [ -z "$DEVICE_ID" ]; then
+            echo "Error: No available iPhone simulator found!"
+            exit 1
+          fi
+          
+          echo "Selected Device ID: $DEVICE_ID"
+          echo "Booting simulator..."
+          
+          # تشغيل المحاكي
+          xcrun simctl boot $DEVICE_ID || echo "Device is already booted."
+          
+          # الانتظار حتى يصبح النظام جاهزاً تماماً
+          echo "Waiting for system to finish booting..."
+          xcrun simctl waitstatus $DEVICE_ID booted
+          
+          # ثبات الواجهة (Buffer time)
+          sleep 15
+          echo "Simulator is ready! ✅"
+
+      - name: Take Verification Screenshot
+        run: |
+          # التقاط صورة للتأكد من أن الشاشة تعمل
+          xcrun simctl io booted screenshot ios_screen.png
+          ls -lh ios_screen.png
+
+      - name: Upload Screenshot Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-screen
+          path: ios_screen.png
+          retention-days: 1
